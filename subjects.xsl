@@ -2,27 +2,25 @@
 <xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:json="http://json.org">
 
 	<!--
-		=== subjects.xsl ===
-		
-		Transforms authority terms in Re:Discovery into JSON for the ArchivesSpace Subject model type.
-		
+		subjects.xsl -- transforms authority terms in Re:Discovery into ArchivesSpace JSON
+
 		Within Re:Discovery we have nine Term Types that need to be migrated to ArchivesSpace, in one way or another.
 		Seven of these are handled through this XSLT.
 		Corporate, personal, and meeting names are considered to be Agents and are handled through the agents.xsl file.
-		
+
 		Resulting JSON documents are then posted to ArchivesSpace via the API.
-		
-		Kevin Clair, kevin.clair@du.edu
-		
+
+		I could probably clean this up quite a bit; I feel like it might be unnecessarily repetitive
+
 	-->
-	
+
 	<xsl:output method="text" encoding="UTF-8"/>
 	<xsl:strip-space elements="*"/>
-	
+
 	<xsl:template match="NewDataSet">
 		<xsl:apply-templates/>
 	</xsl:template>
-	
+
 	<xsl:template match="RediscoveryExport">
 		<xsl:variable name="id" select="ID"/>
 		<xsl:variable name="quot">"</xsl:variable>
@@ -261,7 +259,7 @@
 			</xsl:if>
 			<xsl:text>"terms":[{"jsonmodel_type":"term","term":"</xsl:text>
 			<xsl:choose>
-			
+
 			<!-- Function terms -->
 				<xsl:when test="Term_Type = 'Function'">
 					<xsl:value-of select="Function_Act._Function"/>
@@ -283,13 +281,13 @@
 						</xsl:choose>
 					</xsl:if>
 				</xsl:when>
-			
+
 			<!-- Genre/Form terms -->
 				<xsl:when test="Term_Type = 'Genre/Form'">
 					<xsl:value-of select="Genre_Form_Genre-Form"/>
 					<xsl:text>","term_type":"genre_form","vocabulary":"/vocabularies/1"}</xsl:text>
 				</xsl:when>
-			
+
 			<!-- Geographic terms -->
 				<xsl:when test="Term_Type = 'Geographic term'">
 					<xsl:value-of select="Geographic_Term_Geogr_Name"/>
@@ -315,7 +313,7 @@
 						<xsl:text>","term_type":"temporal","vocabulary":"/vocabularies/1"}</xsl:text>
 					</xsl:if>
 				</xsl:when>
-			
+
 			<!-- Occupational terms -->
 				<xsl:when test="Term_Type = 'Occupation'">
 					<xsl:choose>
@@ -354,7 +352,7 @@
 						<xsl:text>","term_type":"topical","vocabulary":"/vocabularies/1"}</xsl:text>
 					</xsl:if>
 				</xsl:when>
-			
+
 			<!-- Topical terms -->
 				<xsl:when test="Term_Type = 'Topic term'">
 					<xsl:choose>
@@ -403,7 +401,7 @@
 						<xsl:text>","term_type":"temporal","vocabulary":"/vocabularies/1"}</xsl:text>
 					</xsl:if>
 				</xsl:when>
-			
+
 			<!-- Uniform titles -->
 				<xsl:when test="Term_Type = 'Uniform title' or Term_Type = 'Uniform Title'">
 					<xsl:choose>

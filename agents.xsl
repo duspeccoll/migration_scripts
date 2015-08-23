@@ -1,43 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:json="http://json.org" xmlns:marc="http://www.loc.gov/MARC21/slim">
-	
+
 	<!--
-		=== agents.xsl ===
-		
-		Transforms authority terms in Re:Discovery into MARCXML for the ArchivesSpace Agent model type.
-		
-		Within Re:Discovery we have nine Term Types that need to be migrated to ArchivesSpace, in one way or another.
+	  agents.xsl -- converts named entity term types to ArchivesSpace Agents
+
+		Within Re:Discovery there are nine Term Types.
 		Corporate, personal, and meeting names are handled through this XSLT.
 		All other term types are considered to be Subjects and are handled through the subjects.xsl file.
-		
-		Kevin Clair, kevin.clair@du.edu
-		
-		=== STATUS JUNE 11 2014 ===
-		
-		Added most of my old Corporate Name code
-		Fixed up debugging output to get better Re:Discovery error reporting (haven't done it for corporate names, though)
-		Also the debugging output prints one record per line, which is invalid JSON but makes it easier to tell if it's working in validators
-		Wrote a new template called 'write_value' that makes it easier to tell where the actual ArchivesSpace values are coming from (I think)
-		I also moved the notes output out of the choose/when sequence for name types
-		
-		=== STATUS JUNE 10 2014 ===
-		
-		Still working on Personal Names
-		Debug output (not valid JSON), basically to identify issues that need to be cleaned up in Re:Discovery
-		Things I've noticed:
-			Missing Personal name types (needed to distinguish family names from personal names)
-			Want to put all biog/hist information into the Bio_Hist field (return errors for records with Misc_Info populated??)
-			Still need to clean up User 2s and User 3s
-		
+
 	-->
-	
+
 	<xsl:output method="text" encoding="UTF-8"/>
 	<xsl:strip-space elements="*"/>
-	
+
 	<xsl:template match="NewDataSet">
+
+		<!-- variables to escape quotation marks in the metadata -->
 		<xsl:variable name="quot">"</xsl:variable>
 		<xsl:variable name="qrep">\\"</xsl:variable>
+
 		<xsl:for-each select="RediscoveryExport">
+			<!-- set a variable for names that we use to name JSON objects -->
 			<xsl:variable name="fname">
 				<xsl:choose>
 					<xsl:when test="Term_Type = 'Corporate name' or Term_Type = 'Meeting name'">
@@ -54,7 +37,16 @@
 					</xsl:when>
 				</xsl:choose>
 			</xsl:variable>
+
 			<xsl:result-document href="{$fname}" method="text">
+
+				<!-- Further down the XSLT there is a template called "write_value" where most of the JSON is written out -->
+
+				<!--
+				  choose/when for separating out corporate names from personal names
+					Additionally, Re:D stores family names as personal names, so we have to have a
+					choose/when within this choose/when to separate *them* out
+				-->
 				<xsl:choose>
 					<xsl:when test="Term_Type = 'Personal name'">
 						<xsl:choose>
@@ -66,7 +58,7 @@
 									<xsl:with-param name="value" select="Browse_Term"/>
 								</xsl:call-template>
 							</xsl:when>
-						
+
 							<xsl:otherwise>
 								<xsl:variable name="persname">
 									<xsl:choose>
@@ -221,7 +213,7 @@
 							</xsl:when>
 						</xsl:choose>
 					</xsl:when>
-								
+
 					<!-- Corporate and Meeting Names -->
 					<xsl:when test="Term_Type = 'Corporate name' or Term_Type = 'Meeting name'">
 						<xsl:text>{"jsonmodel_type":"agent_corporate_entity","agent_type":"agent_corporate_entity",</xsl:text>
@@ -352,14 +344,29 @@
 						</xsl:choose>
 					</xsl:when>
 				</xsl:choose>
-			
+
+			  <!--
+				  We wrote the old Re:Discovery ID in as the authority ID.
+					At the time it seemed like a good idea (I thought we could use it for linking if we accidentally left any metadata behind)
+					It actually wasn't that useful and you could probably do without it.
+				-->
 				<xsl:text>,"authority_id":</xsl:text>
 				<xsl:call-template name="write_value">
 					<xsl:with-param name="value" select="concat('codu:',ID)"/>
 				</xsl:call-template>
+
+				<!-- setting rules to 'local' because I couldn't guarantee everything was DACS or RDA -->
 				<xsl:text>,"rules":"local","sort_name_auto_generate":true}]</xsl:text>
+
+				<!--
+				  Here are all of the notes.
+					Notes are more restrictive in Agents than they are elsewhere in the application, since everything has to be a <bioghist>
+					This is one of the data cleanup issues we decided to deal with post-migration.
+				-->
 				<xsl:if test="Bio_Hist or Source_Found_ or Scope_Note or See_From or See_Also_From or Public_Note or Non_Public_Note">
 					<xsl:text>,"notes":[</xsl:text>
+
+					<!-- set Re:D Bio_Hist to notes.note_bioghist -->
 					<xsl:if test="Bio_Hist">
 						<xsl:text>{"jsonmodel_type":"note_bioghist"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -374,6 +381,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D Source/Found to notes.note_bioghist w/ label "Source" -->
 					<xsl:if test="Source_Found_">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"Source"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -388,6 +397,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D Scope Note to notes.note_bioghist with label "Scope Note" -->
 					<xsl:if test="Scope_Note">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"Scope Note"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -402,6 +413,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D See From to notes.note_bioghist with label "See From:" -->
 					<xsl:if test="See_From">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"See From:"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -416,6 +429,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D See Also From to notes.note_bioghist with label "See From:" -->
 					<xsl:if test="See_Also_From">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"See From:"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -430,6 +445,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D Public Note to notes.note_bioghist with label "See From:" -->
 					<xsl:if test="Public_Note">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"See From:"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -444,6 +461,8 @@
 							</xsl:otherwise>
 						</xsl:choose>
 					</xsl:if>
+
+					<!-- set Re:D Non-Public Note to notes.note_bioghist with label "See From:"; don't publish it -->
 					<xsl:if test="Non_Public_Note">
 						<xsl:text>{"jsonmodel_type":"note_bioghist","label":"See From:"</xsl:text>
 						<xsl:text>,"subnotes":[{"jsonmodel_type":"note_text","content":"</xsl:text>
@@ -452,16 +471,17 @@
 					</xsl:if>
 					<xsl:text>"publish":true}]</xsl:text>
 				</xsl:if>
-			
+
 				<xsl:text>,"publish":true}</xsl:text>
-			
+
 			</xsl:result-document>
-			<!--<xsl:if test="position() != last()">
-				<xsl:text>&#10;</xsl:text>
-			</xsl:if>-->
 		</xsl:for-each>
 	</xsl:template>
-	
+
+  <!--
+	  All this does is writes whatever string you pass to it into the JSON, with quotation marks escaped.
+		I made it a template because otherwise these same four lines of code would show up like ten times.
+  -->
 	<xsl:template name="write_value">
 		<xsl:param name="value"/>
 		<xsl:variable name="quot">"</xsl:variable>

@@ -1,19 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+  accessions.xsl - maps our Re:Discovery accessions XML to ArchivesSpace accession JSON model
+-->
+
 <xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:json="http://json.org" xmlns:marc="http://www.loc.gov/MARC21/slim">
-	
+
 	<xsl:output method="text" encoding="UTF-8"/>
 	<xsl:strip-space elements="*"/>
-	
+
 	<xsl:template match="NewDataSet">
+
+		<!-- set variables used to escape quotation marks -->
 		<xsl:variable name="quot">"</xsl:variable>
 		<xsl:variable name="qrep">\\"</xsl:variable>
+
+		<!-- loop through each exported accession record -->
 		<xsl:for-each select="RediscoveryExport">
+
+			<!-- assign the record ID to a variable since we use it in various contexts -->
 			<xsl:variable name="id" select="Record_Id"/>
+
+		  <!-- save each record as JSON in the /accessions sub-directory -->
 			<xsl:result-document href="accessions/{$id}.json" method="text">
-				<xsl:text>{"jsonmodel_type":"accession","title":</xsl:text>
+				<xsl:text>{"jsonmodel_type":"accession",</xsl:text>
+
+				<!-- accession.title -->
+				<xsl:text>"title":</xsl:text>
 				<xsl:value-of select="concat($quot,'Accession ',Accession,$quot,',')"/>
+
+				<!-- accession.id_0 -->
 				<xsl:text>"id_0":</xsl:text>
 				<xsl:value-of select="concat($quot,Accession,$quot,',')"/>
+
+				<!-- accession.date -->
 				<xsl:text>"accession_date":</xsl:text>
 				<xsl:variable name="date">
 					<xsl:choose>
@@ -85,22 +105,32 @@
 					</xsl:choose>
 				</xsl:variable>
 				<xsl:value-of select="concat($quot,$date,$quot,',')"/>
+
+				<!-- accession.content_description (if a Description exists) -->
 				<xsl:if test="Description">
 					<xsl:text>"content_description":</xsl:text>
 					<xsl:value-of select="concat($quot,replace(replace(replace(Description,'&#10;','; '),'&#09;',', '),$quot,$qrep),$quot,',')"/>
 				</xsl:if>
+
+				<!-- accession.condition_description (if an Action Required exists) -->
 				<xsl:if test="Action_Reqd">
 					<xsl:text>"condition_description":</xsl:text>
 					<xsl:value-of select="concat($quot,replace(replace(replace(Action_Reqd,'&#10;','; '),'&#09;',', '),$quot,$qrep),$quot,',')"/>
 				</xsl:if>
+
+				<!-- accession.disposition (if an Appraisal field exists) -->
 				<xsl:if test="Archival_Appraisal">
 					<xsl:text>"disposition":</xsl:text>
 					<xsl:value-of select="concat($quot,replace(replace(replace(Archival_Appraisal,'&#10;','; '),'&#09;',', '),$quot,$qrep),$quot,',')"/>
 				</xsl:if>
+
+				<!-- accession.provenance (if a Provenance field exists) -->
 				<xsl:if test="Provenance">
 					<xsl:text>"provenance":</xsl:text>
 					<xsl:value-of select="concat($quot,replace(replace(replace(Provenance,'&#10;','; '),'&#09;',', '),$quot,$qrep),$quot,',')"/>
 				</xsl:if>
+
+				<!-- accession.acquisition_type (if an Acquisition Method is provided) -->
 				<xsl:if test="Acq_Method">
 					<xsl:choose>
 						<xsl:when test="Acq_Method = 'Bequest' or Acq_Method = 'Gift'">
@@ -114,6 +144,11 @@
 						</xsl:when>
 					</xsl:choose>
 				</xsl:if>
+
+				<!--
+				  accession.extents
+				  (if no extent is found, an extent of 0 linear feet is provided)
+				-->
 				<xsl:text>"extents":[</xsl:text>
 				<xsl:choose>
 					<xsl:when test="Extent">
@@ -152,6 +187,8 @@
 					</xsl:otherwise>
 				</xsl:choose>
 				<xsl:text>]</xsl:text>
+
+				<!-- accession.processing_status (if an Acquisition Status is provided) -->
 				<xsl:if test="Acq_Status">
 					<xsl:text>,"collection_management":{"jsonmodel_type":"collection_management",</xsl:text>
 					<xsl:choose>
@@ -164,6 +201,8 @@
 					</xsl:choose>
 					<xsl:text>}</xsl:text>
 				</xsl:if>
+
+				<!-- accession.general_note (map the remaining fields here to deal with later) -->
 				<xsl:if test="Approv_By or Approv_Date or Contact_Name or Credit_Line or Note_s_ or Source or Title_Status">
 					<xsl:text>,"general_note":</xsl:text>
 					<xsl:variable name="note">
@@ -204,6 +243,11 @@
 					</xsl:variable>
 					<xsl:value-of select="concat($quot,replace(replace(replace(replace($note,'&#10;','; '),'&#09;',', '),$quot,$qrep),'. $','.'),$quot)"/>
 				</xsl:if>
+
+				<!--
+				  user_defined.real_1 and user_defined.real_2
+				  these are where we store the acquisition price and appraised value
+				-->
 				<xsl:if test="Acq_Price or Acq_Value">
 					<xsl:text>,"user_defined":{"jsonmodel_type":"user_defined",</xsl:text>
 					<xsl:if test="Acq_Price">
@@ -226,4 +270,3 @@
 
 
 </xsl:stylesheet>
-
